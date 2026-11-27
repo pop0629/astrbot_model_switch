@@ -307,5 +307,56 @@ async def run() -> None:
     print("ALL SMOKE TESTS PASSED")
 
 
+async def run_old_version() -> None:
+    """模拟旧版 AstrBot：没有 session_overrides 模块、set_provider 用老签名。"""
+    saved = sys.modules.pop("astrbot.core.session_overrides", None)
+    sys.modules["astrbot.core.session_overrides"] = None  # import 时抛 ImportError
+    try:
+        import importlib
+
+        compat = importlib.reload(plugin_main.core_compat)
+        assert not compat.supports_session_isolation(), "旧版应识别为无会话隔离"
+
+        class OldPM:
+            def __init__(self):
+                self.last = None
+
+            async def set_provider(self, provider_id, provider_type, umo=None):
+                self.last = (provider_id, provider_type, umo)
+
+        class OldCtx(FakeCtx):
+            def __init__(self, providers, history):
+                super().__init__(providers, history)
+                self.provider_manager = OldPM()
+                self._provs = providers
+                self.provider_manager.inst_map = None
+
+            async def get_using_provider_async(self, umo=None):
+                return self._provs[0]
+
+        ctx = OldCtx([FakeProvider("p-old", "m-old"), FakeProvider("p-new", "m-new")], convo(3))
+        ctx.provider_manager.inst_map = {p.pid: p for p in ctx._provs}
+        plugin = plugin_main.Main(ctx, {"handoff_turns": 1, "enable_summary": False})
+        ev = FakeEvent()
+        await plugin.modelswitch(ev, "p-new")
+        assert "已切到 p-new" in ev.result.text, ev.result.text
+        assert "全局切换" in ev.result.text, ev.result.text
+        assert ctx.provider_manager.last[0] == "p-new"
+        await plugin.modelswitch(ev, "status")
+        assert "不支持" in ev.result.text, ev.result.text
+        await plugin.clear_override(ev)
+        assert "无法自动恢复" in ev.result.text, ev.result.text
+        print("OLD-VERSION COMPAT PASSED")
+    finally:
+        if saved is not None:
+            sys.modules["astrbot.core.session_overrides"] = saved
+        else:
+            sys.modules.pop("astrbot.core.session_overrides", None)
+        import importlib
+
+        importlib.reload(plugin_main.core_compat)
+
+
 if __name__ == "__main__":
     asyncio.run(run())
+    asyncio.run(run_old_version())

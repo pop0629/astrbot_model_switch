@@ -19,10 +19,9 @@ from typing import Any
 
 from astrbot.api import AstrBotConfig, logger, sp, star
 from astrbot.api.event import AstrMessageEvent, MessageEventResult, filter
-from astrbot.core.provider.entities import ProviderType
-from astrbot.core.session_overrides import PROVIDER_PATHS, get_overrides, update_overrides
 
 from .core import ContinuityEngine, EngineConfig, SwitchState, sanitize_history
+from .core import compat as core_compat
 
 # 便于外部以包方式导入（测试 / 其它插件）
 __all__ = ["Main", "SwitchState", "ContinuityEngine"]
@@ -224,13 +223,9 @@ class Main(star.Star):
             snapshot=snapshot,
         )
 
-        # 1) 真正执行切换（会话级 override，不影响其它会话）
+        # 1) 真正执行切换（新版本走会话级 override，旧版本自动降级为全局切换）
         try:
-            await self.context.provider_manager.set_provider(
-                provider_id=target_id,
-                provider_type=ProviderType.CHAT_COMPLETION,
-                umo=umo,
-            )
+            scope = await core_compat.set_chat_provider(self.context, target_id, umo)
         except Exception as e:  # noqa: BLE001
             logger.error(f"[model_switch] set_provider failed: {e}")
             return f"切换失败：{e}"
@@ -246,9 +241,10 @@ class Main(star.Star):
         if not self._cfg("announce_switch", True):
             return "已切换。"
         turns = self.engine.config.handoff_turns
+        scope_note = "" if scope == "session" else "\n（当前版本不支持会话级隔离，已全局切换所有会话）"
         if turns > 0:
-            return f"已切到 {target_id}。接下来 {turns} 轮用交接模式衔接上下文。"
-        return f"已切到 {target_id}。"
+            return f"已切到 {target_id}。接下来 {turns} 轮用交接模式衔接上下文。{scope_note}"
+        return f"已切到 {target_id}。{scope_note}"
 
     # ------------------------------------------------------------------ #
     # 核心：请求改写
@@ -330,12 +326,12 @@ class Main(star.Star):
     async def _render_status(self, umo: str) -> str:
         state = await self._load_state(umo)
         cur = await self._resolve_current_id(umo)
-        try:
-            overrides = await get_overrides(umo)
-        except Exception:  # noqa: BLE001
-            overrides = {}
-        override_id = overrides.get(PROVIDER_PATHS["chat_completion"]) or "（继承全局）"
-        lines = [f"当前模型: {cur or '未知'}", f"会话覆盖: {override_id}"]
+        override_id = await core_compat.get_session_override_id(umo)
+        if not core_compat.supports_session_isolation():
+            override_line = "不支持（当前版本无会话级隔离）"
+        else:
+            override_line = override_id or "（继承全局）"
+        lines = [f"当前模型: {cur or '未知'}", f"会话覆盖: {override_line}"]
         if state:
             lines.append(
                 f"交接状态: {state.old_model or state.old_provider_id} -> "
@@ -353,6 +349,10 @@ class Main(star.Star):
     async def clear_override(self, event: AstrMessageEvent) -> None:
         """清除本会话的模型覆盖，回到全局模型。"""
         umo = event.unified_msg_origin
-        await update_overrides(umo, {PROVIDER_PATHS["chat_completion"]: None})
+        cleared = await core_compat.clear_session_override(umo)
         await self._save_state(umo, None)
-        event.set_result(MessageEventResult().message("已恢复全局模型，交接状态已清除。"))
+        if cleared:
+            msg = "已恢复全局模型，交接状态已清除。"
+        else:
+            msg = "当前版本不支持会话级模型覆盖，无法自动恢复；请在面板里手动切回全局模型。交接状态已清除。"
+        event.set_result(MessageEventResult().message(msg))

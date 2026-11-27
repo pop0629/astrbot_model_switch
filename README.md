@@ -52,10 +52,22 @@
 4. **会话级隔离**：走 `set_provider(umo=...)` 的会话 override，只影响当前会话；`/modelswitch status` 会显示 override 来源。
 5. **外部改动自愈**：如果用户在面板上直接换了模型，`on_llm_request` 会检测到 `current != state.new_provider_id` 并把交接对象校正为真实模型。
 
+## 版本兼容
+
+`astrbot.core.session_overrides` 只存在于较新的 4.x 版本。插件把所有版本差异收口在 `core/compat.py`：
+
+| 能力 | 新版（有 session_overrides） | 旧版（没有该模块） |
+| --- | --- | --- |
+| 切换模型 | `set_provider(..., umo=umo)` 会话级 override | 自动降级为全局切换 |
+| `set_provider` 签名 | 关键字参数版 | 位置参数版（inspect 自适应） |
+| `/modelswitch status` | 显示会话覆盖来源 | 显示「不支持（当前版本无会话级隔离）」 |
+| `/modelswitch_clear_override` | 恢复全局模型 | 提示需手动切回 |
+
 ## 结构
 
 ```
 main.py                 插件入口：指令 + on_llm_request 钩子 + 状态存取
+core/compat.py          版本兼容层：set_provider 签名、会话隔离 API 探测
 core/continuity.py      纯函数：清洗 / 窗口 / 锚点与摘要 / 交接块
 core/engine.py          编排：切换事件 → 摘要 → 请求改写（RequestPatch）
 _conf_schema.json       可视化配置
@@ -67,7 +79,7 @@ tests/test_plugin_smoke.py 全链路冒烟（伪造 astrbot 运行时）
 
 ```bash
 python3 -m unittest discover -s tests -v   # 核心纯函数
-python3 tests/test_plugin_smoke.py         # 指令 + 请求改写全链路
+python3 tests/test_plugin_smoke.py         # 指令 + 请求改写全链路（含旧版降级场景）
 ```
 
 ## 调参建议

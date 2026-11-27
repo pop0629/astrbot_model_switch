@@ -1,10 +1,10 @@
 name: astrbot_model_switch
 display_name: 无缝模型切换
 desc: 在会话内切换 LLM 模型，同时清洗历史、收紧窗口并注入一次性交接上下文，尽可能降低换模型带来的对话割裂。
-version: 0.1.0
-author: TARGET_AUTHOR
-repo: https://github.com/TARGET_REPO/astrbot_model_switch
-astrbot_version: ">=4.24.0"  # 使用 OnLLMRequestEvent + on_llm_request 钩子
+version: 0.1.1
+author: pop0629
+repo: https://github.com/pop0629/astrbot_model_switch
+astrbot_version: ">=4.0.0"
 tags:
   - model
   - provider
