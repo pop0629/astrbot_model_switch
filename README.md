@@ -58,10 +58,12 @@
 
 | 能力 | 新版（有 session_overrides） | 旧版（没有该模块） |
 | --- | --- | --- |
-| 切换模型 | `set_provider(..., umo=umo)` 会话级 override | 自动降级为全局切换 |
+| 切换模型 | `set_provider(..., umo=umo)` 写 session_overrides | 写会话 KV `provider_perf_chat_completion`（4.0.0 的做法），仍会话级隔离 |
 | `set_provider` 签名 | 关键字参数版 | 位置参数版（inspect 自适应） |
-| `/modelswitch status` | 显示会话覆盖来源 | 显示「不支持（当前版本无会话级隔离）」 |
-| `/modelswitch_clear_override` | 恢复全局模型 | 提示需手动切回 |
+| `/modelswitch status` | 显示会话覆盖来源 | 同样显示，读同一会话 KV |
+| `/modelswitch_clear_override` | 清 session_overrides | 清会话 KV |
+
+两条路都不可用时才降级为全局切换，并在回复里注明「已全局切换所有会话」。
 
 ## 结构
 
