@@ -357,6 +357,37 @@ async def run_old_version() -> None:
         importlib.reload(plugin_main.core_compat)
 
 
+def check_schema() -> None:
+    """配置 schema 必须是严格 JSON（AstrBot 用 json.load 解析，注释会直接报错）。"""
+    import json
+
+    path = ROOT / "_conf_schema.json"
+    raw = path.read_bytes()
+    assert not raw.startswith(b"\xef\xbb\xbf"), "schema 不能带 BOM"
+    data = json.loads(raw.decode("utf-8"))
+    assert data, "schema 不能为空"
+    for key, spec in data.items():
+        assert isinstance(spec, dict), f"{key} 必须是对象"
+        assert spec.get("type"), f"{key} 缺少 type"
+        assert "default" in spec, f"{key} 缺少 default"
+        t = spec["type"]
+        v = spec["default"]
+        ok = {
+            "int": isinstance(v, int) and not isinstance(v, bool),
+            "bool": isinstance(v, bool),
+            "string": isinstance(v, str),
+            "float": isinstance(v, (int, float)),
+        }.get(t, True)
+        assert ok, f"{key} 默认值类型与 {t} 不符: {v!r}"
+    # 配置项与 EngineConfig 字段对齐
+    EngineConfig = importlib.import_module(f"{ROOT.name}.core").EngineConfig
+    fields = set(EngineConfig.__dataclass_fields__)
+    missing = fields - set(data) - {"summarizer_provider_id"}
+    assert not missing, f"schema 缺少引擎字段: {missing}"
+    print(f"SCHEMA OK ({len(data)} keys)")
+
+
 if __name__ == "__main__":
+    check_schema()
     asyncio.run(run())
     asyncio.run(run_old_version())

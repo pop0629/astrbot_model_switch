@@ -1,50 +1,62 @@
-# 配置项：在 AstrBot WebUI 插件配置页可直接可视化修改
-handoff_turns:
-  type: int
-  description: 切换后启用"交接模式"的轮数（紧窗口 + 交接块只作用于这几轮）
-  default: 2
-  hint: 0 表示关闭窗口收紧与交接注入，只做历史清洗
-recent_turns:
-  type: int
-  description: 交接模式下保留的近期对话轮数
-  default: 6
-  hint: 按 user 消息计一轮；0 表示不裁剪
-max_chars:
-  type: int
-  description: 交接模式下上下文字符预算（0 表示不限）
-  default: 12000
-sanitize_tools:
-  type: bool
-  description: 切换后清洗历史中的 tool / tool_calls / reasoning 块
-  default: true
-  hint: 新模型通常没有旧模型的工具 schema，保留会直接 400，建议开启
-enable_summary:
-  type: bool
-  description: 使用摘要模型把历史压缩成交接摘要
-  default: true
-  hint: 关闭或摘要失败时自动降级为规则抽取
-summarizer_provider_id:
-  type: string
-  description: 摘要模型使用的 provider ID（留空则用切换后的当前模型）
-  default: ""
-digest_max_messages:
-  type: int
-  description: 送入摘要的历史条数上限
-  default: 40
-touch_system_prompt:
-  type: bool
-  description: 交接块写入 system prompt 尾部
-  default: true
-  hint: 关闭则改为一次性 user 前缀，可保护 provider 端 prompt 缓存
-include_model_names:
-  type: bool
-  description: 在交接块中写明新旧模型名
-  default: false
-extra_rules:
-  type: string
-  description: 追加到交接块的额外规则
-  default: ""
-announce_switch:
-  type: bool
-  description: 切换成功后在会话里回一条简短提示
-  default: true
+{
+  "handoff_turns": {
+    "type": "int",
+    "description": "切换后启用“交接模式”的轮数（紧窗口 + 交接块只作用于这几轮）",
+    "default": 2,
+    "hint": "0 表示关闭窗口收紧与交接注入，只做历史清洗"
+  },
+  "recent_turns": {
+    "type": "int",
+    "description": "交接模式下保留的近期对话轮数",
+    "default": 6,
+    "hint": "按 user 消息计一轮；0 表示不裁剪"
+  },
+  "max_chars": {
+    "type": "int",
+    "description": "交接模式下上下文字符预算（0 表示不限）",
+    "default": 12000
+  },
+  "sanitize_tools": {
+    "type": "bool",
+    "description": "切换后清洗历史中的 tool / tool_calls / reasoning 块",
+    "default": true,
+    "hint": "新模型通常没有旧模型的工具 schema，保留会直接 400，建议开启"
+  },
+  "enable_summary": {
+    "type": "bool",
+    "description": "使用摘要模型把历史压缩成交接摘要",
+    "default": true,
+    "hint": "关闭或摘要失败时自动降级为规则抽取"
+  },
+  "summarizer_provider_id": {
+    "type": "string",
+    "description": "摘要模型使用的 provider ID（留空则用切换后的当前模型）",
+    "default": ""
+  },
+  "digest_max_messages": {
+    "type": "int",
+    "description": "送入摘要的历史条数上限",
+    "default": 40
+  },
+  "touch_system_prompt": {
+    "type": "bool",
+    "description": "交接块写入 system prompt 尾部",
+    "default": true,
+    "hint": "关闭则改为一次性 user 前缀，可保护 provider 端 prompt 缓存"
+  },
+  "include_model_names": {
+    "type": "bool",
+    "description": "在交接块中写明新旧模型名",
+    "default": false
+  },
+  "extra_rules": {
+    "type": "string",
+    "description": "追加到交接块的额外规则",
+    "default": ""
+  },
+  "announce_switch": {
+    "type": "bool",
+    "description": "切换成功后在会话里回一条简短提示",
+    "default": true
+  }
+}
